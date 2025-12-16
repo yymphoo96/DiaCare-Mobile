@@ -10,7 +10,7 @@ import HealthKit
 
 struct ContentView: View {
     @StateObject var healthManager = Manager()
-    @StateObject var healthUpdater = ManageActivities()
+    @StateObject var healthUpdater = HealthActivitiesManager()
 
     var body: some View {
         VStack {
@@ -20,9 +20,9 @@ struct ContentView: View {
 
             Text(healthManager.healthStatus)
             Text("Today's steps: \(healthManager.stepcount)")
-            Button("Fetch & Upload Yesterday's Steps") {
-                            healthUpdater.requestAuthorization()
-                        }
+//            Button("Fetch & Upload Yesterday's Steps") {
+//                            healthUpdater.requestAuthorization()
+//                        }
 
         }
         .padding()

@@ -12,18 +12,8 @@ struct RootView: View {
     var body: some View {
         Group {
             if isAuthenticated {
-                TabView {
-                    ProfileView(isAuthenticated: $isAuthenticated)
-                        .tabItem {
-                            Label("Profile", systemImage: "person")
-                        }
-                    
-                    // Your existing ManageActivities view
-                    Text("Manage Activities")
-                        .tabItem {
-                            Label("Activities", systemImage: "list.bullet")
-                        }
-                }
+                MainTabView(isAuthenticated: $isAuthenticated)
+                
             } else {
                 NavigationView {
                     LoginView(isAuthenticated: $isAuthenticated)
