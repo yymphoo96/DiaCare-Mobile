@@ -10,8 +10,10 @@ import SwiftUI
 struct HomeView: View {
     @State private var dailyChallengeProgress = 5
     @State private var totalChallenges = 8
-    @Binding var currentUser: User?  // ADD THIS
-    @State private var showHealthProfileSheet = false  // ADD THIS
+    @Binding var currentUser: User?
+    @State private var showHealthProfileSheet = false
+    @State private var showPredictionView = false
+    @StateObject private var healthManager = HealthActivitiesManager()
     
     var body: some View {
         NavigationView {
@@ -136,8 +138,16 @@ struct HomeView: View {
                                 .font(.system(size: 32))
                         }
                         
+                        
+                        
                         Button(action: {
-                            // Navigate to diabetes prediction
+                            // Check if health profile is complete
+                            if let profile = currentUser?.healthProfile, profile.isComplete {
+                                showPredictionView = true
+                            } else {
+                                // Show health profile form if not complete
+                                showHealthProfileSheet = true
+                            }
                         }) {
                             Text("Check Your Risk")
                                 .font(.headline)
@@ -153,6 +163,7 @@ struct HomeView: View {
                                 )
                                 .cornerRadius(16)
                         }
+
                         
                         Text("Based on your health metrics & lifestyle")
                             .font(.caption)
@@ -230,6 +241,15 @@ struct HomeView: View {
             .sheet(isPresented: $showHealthProfileSheet) {  // ADD THIS
                             HealthProfileFormView(user: $currentUser, isPresented: $showHealthProfileSheet)
                         }
+            .sheet(isPresented: $showPredictionView) {
+                if let profile = currentUser?.healthProfile {
+                    DiabetesPredictionView(
+                        healthProfile: profile,
+                        isPresented: $showPredictionView,
+                        physicalActivity: healthManager.todayExerciseMinutes
+                    )
+                }
+            }
         }
     }
 }

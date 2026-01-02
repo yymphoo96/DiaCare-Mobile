@@ -11,77 +11,64 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab = 0
     @Binding var isAuthenticated: Bool
-    @State private var currentUser: User? // ← ADD THIS
-    @State private var isLoadingUser = true // ← ADD THIS
+    @State private var currentUser: User?
     
     var body: some View {
-        Group {
-            if isLoadingUser {
-                ProgressView("Loading...")
-            } else {
-                TabView(selection: $selectedTab) {
-                    // ← CHANGE: Pass currentUser to HomeView
-                    HomeView(currentUser: $currentUser)
-                        .tabItem {
-                            Image(systemName: selectedTab == 0 ? "house.fill" : "house")
-                            Text("Home")
-                        }
-                        .tag(0)
-                    
-                    ActivityView()
-                        .tabItem {
-                            Image(systemName: selectedTab == 1 ? "figure.run" : "figure.walk")
-                            Text("Activity")
-                        }
-                        .tag(1)
-                    
-                    // ← CHANGE: Pass currentUser to ProfileView
-                    ProfileView(isAuthenticated: $isAuthenticated, currentUser: $currentUser)
-                        .tabItem {
-                            Image(systemName: selectedTab == 2 ? "person.fill" : "person")
-                            Text("Profile")
-                        }
-                        .tag(2)
+        TabView(selection: $selectedTab) {
+            HomeView(currentUser: $currentUser)
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Home")
                 }
-                .accentColor(.purple)
-            }
+                .tag(0)
+            
+            ActivityView()
+                .tabItem {
+                    Image(systemName: "figure.run")
+                    Text("Activity")
+                }
+                .tag(1)
+            
+            ProfileView(isAuthenticated: $isAuthenticated, currentUser: $currentUser)
+                .tabItem {
+                    Image(systemName: "person.fill")
+                    Text("Profile")
+                }
+                .tag(2)
         }
+        .accentColor(.purple)
         .onAppear {
-            loadUser() // ← ADD THIS
+            loadUser()
         }
     }
     
-    // ← ADD THIS ENTIRE FUNCTION
     private func loadUser() {
-        isLoadingUser = true
-        
-        // Try loading from cache first
-        if let data = UserDefaults.standard.data(forKey: "currentUser"),
-           let cachedUser = try? JSONDecoder().decode(User.self, from: data) {
+        // Load from local storage FIRST (instant load)
+        if let cachedUser = LocalStorageManager.shared.loadUser() {
             currentUser = cachedUser
-            isLoadingUser = false
+            print("✅ User loaded from cache")
         }
         
         // Then fetch fresh data from API
-        Task {
-            do {
-                let fetchedUser = try await AuthService.shared.getProfile()
-                await MainActor.run {
-                    currentUser = fetchedUser
-                    isLoadingUser = false
-                    
-                    // Save to cache
-                    if let encoded = try? JSONEncoder().encode(fetchedUser) {
-                        UserDefaults.standard.set(encoded, forKey: "currentUser")
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingUser = false
-                }
-                print("Failed to fetch user profile: \(error)")
-            }
-        }
+//        Task {
+//            do {
+//                let fetchedUser = try await AuthService.shared.getProfile()
+//                await MainActor.run {
+//                    currentUser = fetchedUser
+//                    isLoadingUser = false
+//                    
+//                    // Save to cache
+//                    if let encoded = try? JSONEncoder().encode(fetchedUser) {
+//                        UserDefaults.standard.set(encoded, forKey: "currentUser")
+//                    }
+//                }
+//            } catch {
+//                await MainActor.run {
+//                    isLoadingUser = false
+//                }
+//                print("Failed to fetch user profile: \(error)")
+//            }
+//        }
     }
 }
 
@@ -191,9 +178,14 @@ struct ProfileView: View {
                         
                         // Logout Button
                         Button(action: {
+                            // Clear backend session
                             AuthService.shared.logout()
+                            
+                            // ✅ CLEAR LOCAL STORAGE
+                            LocalStorageManager.shared.clearAllData()
+                            
+                            // Update authentication state
                             isAuthenticated = false
-                            UserDefaults.standard.removeObject(forKey: "currentUser")
                         }) {
                             Text("Logout")
                                 .font(.headline)
@@ -230,17 +222,33 @@ struct ProfileView: View {
     private func updateProfile() {
         Task {
             do {
+                // Try backend first
                 let updatedUser = try await AuthService.shared.updateProfile(name: newName)
                 await MainActor.run {
                     currentUser = updatedUser
                     isEditingName = false
                     
-                    if let encoded = try? JSONEncoder().encode(updatedUser) {
-                        UserDefaults.standard.set(encoded, forKey: "currentUser")
-                    }
+                    // ✅ SAVE TO LOCAL STORAGE
+                    LocalStorageManager.shared.saveUser(updatedUser)
                 }
             } catch {
-                print("Failed to update profile: \(error)")
+                // Fallback: update locally
+                if let user = currentUser {
+                    let updatedUser = User(
+                        id: user.id,
+                        name: newName,
+                        email: user.email,
+                        healthProfile: user.healthProfile
+                    )
+                    
+                    await MainActor.run {
+                        currentUser = updatedUser
+                        isEditingName = false
+                        
+                        // ✅ SAVE TO LOCAL STORAGE
+                        LocalStorageManager.shared.saveUser(updatedUser)
+                    }
+                }
             }
         }
     }

@@ -68,6 +68,8 @@ struct HealthProfile: Codable {
     var difficultyWalking: Bool?
     var stressLevel: StressLevel?
     var sleepHours: Double?
+    var education: Int?
+    var income: Int?
     
     var isComplete: Bool {
         return gender != nil && age != nil && height != nil && weight != nil &&
@@ -95,6 +97,8 @@ struct HealthProfile: Codable {
         case difficultyWalking = "difficulty_walking"
         case stressLevel = "stress_level"
         case sleepHours = "sleep_hours"
+        case education
+        case income
     }
 }
 
